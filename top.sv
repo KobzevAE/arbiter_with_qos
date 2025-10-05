@@ -10,8 +10,8 @@ module stream_arbiter_w_qos #(
  input logic rst_n,
 
  input logic [T_DATA_WIDTH-1:0] s_data_in [STREAM_COUNT-1:0],
- input logic [T_QOS__WIDTH-1:0] s_qos_in [STREAM_COUNT-1:0],            // not [T_QOS__WIDTH-1:0] because we need pointer when we complete transac and old data is not neseccery
- input logic [STREAM_COUNT-1:0] s_last_in,                            // for this example s_qos_in = 3: the highest priority, s_qos_in = 1 the lowest priority, s_qos_in = 5: we dont use this data
+ input logic [T_QOS__WIDTH-1:0] s_qos_in [STREAM_COUNT-1:0],            
+ input logic [STREAM_COUNT-1:0] s_last_in,                            
  input logic [STREAM_COUNT-1:0] s_valid_in,
  output logic [STREAM_COUNT-1:0] s_ready_out,
 
@@ -42,7 +42,7 @@ always_comb begin
     logic [STREAM_COUNT-1:0] candidate_mask;
     
 
-    max_qos = 0;
+    max_qos = 0;                                               // finding the maximum qos
     for (int i = 0; i < STREAM_COUNT; i++) begin
         if (s_valid_in[i] && s_qos_in[i] != 0) begin
             if (s_qos_in[i] > max_qos) begin
@@ -51,11 +51,10 @@ always_comb begin
         end
     end
     
-
     candidate_mask = 0;
     for (int i = 0; i < STREAM_COUNT; i++) begin
         if (s_valid_in[i]) begin
-            if (max_qos != 0) begin
+            if (max_qos != 0) begin                             // select streams with maximum qos or zero qos
 
                 if (s_qos_in[i] == max_qos || s_qos_in[i] == 0) begin
                     candidate_mask[i] = 1'b1;
@@ -69,13 +68,12 @@ always_comb begin
         end
     end
     
-
     stream_found = 1'b0;
     next_stream = rr_pointer;
     
-    for (int i = 1; i <= STREAM_COUNT; i++) begin
+    for (int i = 0; i < STREAM_COUNT; i++) begin            // Round Robin
   
-        index = (rr_pointer + i) % STREAM_COUNT;
+        index = (rr_pointer + i) % STREAM_COUNT;           
         
         if (candidate_mask[index]) begin
             next_stream = index;
@@ -85,8 +83,7 @@ always_comb begin
     end
 end
 
-
-always_ff @(posedge clk or negedge rst_n) begin
+always_ff @(posedge clk or negedge rst_n) begin                  // fsm
     if (!rst_n) begin
         state <= ST_IDLE;
         rr_pointer <= 0;
@@ -95,7 +92,7 @@ always_ff @(posedge clk or negedge rst_n) begin
     end else begin
         case (state)
             ST_IDLE: begin
-                if (stream_found && m_ready_in) begin
+                if (stream_found && m_ready_in) begin           // if we have candidate and master is ready
                     state <= ST_ACTIVE;
                     selected_stream <= next_stream;
                     selected_qos <= s_qos_in[next_stream];
@@ -104,10 +101,33 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
             
             ST_ACTIVE: begin
-                if (m_valid_out && m_ready_in && m_last_out) begin
+                if (s_valid_in && s_ready_out && s_last_in) begin
                     state <= ST_IDLE;
                 end
             end
         endcase
     end
 end
+
+always_comb begin
+    if (state == ST_ACTIVE) begin
+        m_valid_out = s_valid_in[selected_stream];
+        m_data_out = s_data_in[selected_stream];
+        m_last_out = s_last_in[selected_stream];
+        m_id_out = selected_stream;
+        m_qos_out = selected_qos;
+        
+        for (int i = 0; i < STREAM_COUNT; i++) begin
+            s_ready_out[i] = (i == selected_stream) ? m_ready_in : 1'b0;
+        end
+    end else begin
+        m_valid_out = 1'b0;
+        m_data_out = 0;
+        m_last_out = 1'b0;
+        m_id_out = 0;
+        m_qos_out = 0;
+        s_ready_out = 0;
+    end
+end
+
+endmodule
