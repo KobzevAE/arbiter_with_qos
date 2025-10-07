@@ -1,9 +1,7 @@
-`timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
 module stream_arbiter_w_qos #(
  parameter   T_DATA_WIDTH = 4,
       T_QOS__WIDTH = 2,
-      STREAM_COUNT = 2,
+      STREAM_COUNT = 3,
       T_ID___WIDTH = $clog2(STREAM_COUNT)
 )(
  input logic clk,
@@ -37,11 +35,13 @@ logic [T_ID___WIDTH-1:0] index;
 logic [T_ID___WIDTH-1:0] next_stream;
 logic stream_found;
 
-always_comb begin
-    logic [T_QOS__WIDTH-1:0] max_qos;
-    logic [STREAM_COUNT-1:0] candidate_mask;
-    
+logic [T_QOS__WIDTH-1:0] max_qos;
+logic [STREAM_COUNT-1:0] candidate_mask;
 
+logic aboba;
+
+always_comb begin    
+    aboba <= 0;
     max_qos = 0;                                               // finding the maximum qos
     for (int i = 0; i < STREAM_COUNT; i++) begin
         if (s_valid_in[i] && s_qos_in[i] != 0) begin
@@ -109,7 +109,7 @@ always_ff @(posedge clk or negedge rst_n) begin                  // fsm
     end
 end
 
-always_comb begin
+always_comb begin                                                        // output
     if (state == ST_ACTIVE) begin
         m_valid_out = s_valid_in[selected_stream];
         m_data_out = s_data_in[selected_stream];

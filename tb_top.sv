@@ -4,7 +4,7 @@ module tb_stream_arbiter_w_qos();
 
 parameter T_DATA_WIDTH = 4;
 parameter T_QOS__WIDTH = 2;
-parameter STREAM_COUNT = 2;
+parameter STREAM_COUNT = 3;
 localparam T_ID___WIDTH = $clog2(STREAM_COUNT);
 logic clk;
 logic rst_n;
@@ -82,49 +82,113 @@ initial begin
     s_qos_in[1] = 2'b10; 
     s_last_in[1] = 0;
     
+    s_valid_in[2] = 1;
+    s_data_in[2] = 4'hC;
+    s_qos_in[2] = 2'b11; 
+    s_last_in[2] = 0;
+    
     #10; 
     
-    s_data_in[1] = 4'hD;
+    s_data_in[2] = 4'hD;
+    s_last_in[2] = 1;
+    #10;
+    s_valid_in[2] = 0;
+
+    #10;
+    s_data_in[1] = 4'hE;
     s_last_in[1] = 1;
     #10;
     s_valid_in[1] = 0;
-    s_valid_in[0] = 1;
+
     #10;
-    s_data_in[0] = 4'hC;
+    s_data_in[0] = 4'hB;
     s_last_in[0] = 1;
-    // End transactions
-    #10
+    #10;     // End transactions
     s_valid_in = 0;
     s_last_in = 0;
     #20;
     
     $display("--------------Test 2: same_qos ----------------");
     
-    // Both streams same qos 2=2
-      s_valid_in[0] = 1;
-    s_data_in[0] = 4'h9;
+    s_valid_in[0] = 1;
+    s_data_in[0] = 4'hA;
     s_qos_in[0] = 2'b01; 
     s_last_in[0] = 0;
     
     s_valid_in[1] = 1;
-    s_data_in[1] = 4'h7;
+    s_data_in[1] = 4'hB;
     s_qos_in[1] = 2'b01; 
     s_last_in[1] = 0;
     
+    s_valid_in[2] = 1;
+    s_data_in[2] = 4'hC;
+    s_qos_in[2] = 2'b01; 
+    s_last_in[2] = 0;
+    
     #10; 
     
-    s_data_in[0] = 4'h8;
+    s_data_in[0] = 4'hD;
     s_last_in[0] = 1;
     #10;
     s_valid_in[0] = 0;
+
     #10;
-    s_data_in[1] = 4'h6;
+    s_data_in[1] = 4'hE;
     s_last_in[1] = 1;
+    #10;
+    s_valid_in[1] = 0;
     // End transactions
+    #10;
+    s_data_in[2] = 4'hB;
+    s_last_in[2] = 1;
     #10
     s_valid_in = 0;
     s_last_in = 0;
-    #20;
+    #40;
+    
+    //rst_n = 0;
+    //#20;
+    //rst_n = 1;
+
+      
+    $display("--------------Test 2: qos = 0 ----------------");
+    
+    s_valid_in[0] = 1;
+    s_data_in[0] = 4'hA;
+    s_qos_in[0] = 2'b01; 
+    s_last_in[0] = 0;
+    
+    s_valid_in[1] = 1;
+    s_data_in[1] = 4'hB;
+    s_qos_in[1] = 2'b01; 
+    s_last_in[1] = 0;
+    
+    s_valid_in[2] = 1;
+    s_data_in[2] = 4'hC;
+    s_qos_in[2] = 2'b00; 
+    s_last_in[2] = 0;
+    
+    #10; 
+    
+    s_data_in[0] = 4'hD;
+    s_last_in[0] = 1;
+    #10;
+    s_valid_in[0] = 0;
+
+    #10;
+    s_data_in[1] = 4'hE;
+    s_last_in[1] = 1;
+    #10;
+    s_valid_in[1] = 0;
+    // End transactions
+    #10;
+    s_data_in[2] = 4'hB;
+    s_last_in[2] = 1;
+    #10
+    s_valid_in = 0;
+    s_last_in = 0;
+    #40;
+
     
     $display("---------------- FINISH -----------------");
     $finish;
