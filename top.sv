@@ -38,10 +38,7 @@ logic stream_found;
 logic [T_QOS__WIDTH-1:0] max_qos;
 logic [STREAM_COUNT-1:0] candidate_mask;
 
-logic aboba;
-
 always_comb begin    
-    aboba <= 0;
     max_qos = 0;                                               // finding the maximum qos
     for (int i = 0; i < STREAM_COUNT; i++) begin
         if (s_valid_in[i] && s_qos_in[i] != 0) begin
@@ -70,10 +67,10 @@ always_comb begin
     
     stream_found = 1'b0;
     next_stream = rr_pointer;
-    
+    index = 0;
     for (int i = 0; i < STREAM_COUNT; i++) begin            // Round Robin
   
-        index = (rr_pointer + i) % STREAM_COUNT;           
+        index =i; //(rr_pointer + i) % STREAM_COUNT;           
         
         if (candidate_mask[index]) begin
             next_stream = index;
@@ -97,6 +94,12 @@ always_ff @(posedge clk or negedge rst_n) begin                  // fsm
                     selected_stream <= next_stream;
                     selected_qos <= s_qos_in[next_stream];
                     rr_pointer <= next_stream;
+                end
+                else begin
+                    rr_pointer <= 0;
+                    selected_stream <= 0;
+                    selected_qos <= 0;
+                    state <= ST_IDLE;
                 end
             end
             

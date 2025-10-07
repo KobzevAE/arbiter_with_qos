@@ -53,7 +53,6 @@ stream_arbiter_w_qos #(
     .m_valid_out(m_valid_out),
     .m_ready_in(m_ready_in)
 );
-
 initial begin
     // Initialize
     rst_n = 0;
@@ -155,7 +154,7 @@ initial begin
     
     s_valid_in[0] = 1;
     s_data_in[0] = 4'hA;
-    s_qos_in[0] = 2'b01; 
+    s_qos_in[0] = 2'b00; 
     s_last_in[0] = 0;
     
     s_valid_in[1] = 1;
@@ -165,7 +164,7 @@ initial begin
     
     s_valid_in[2] = 1;
     s_data_in[2] = 4'hC;
-    s_qos_in[2] = 2'b00; 
+    s_qos_in[2] = 2'b01; 
     s_last_in[2] = 0;
     
     #10; 
@@ -189,7 +188,43 @@ initial begin
     s_last_in = 0;
     #40;
 
+    $display("--------------qos = 0,1,2----------------");
     
+    s_valid_in[0] = 1;
+    s_data_in[0] = 4'hA;
+    s_qos_in[0] = 2'b01; 
+    s_last_in[0] = 0;
+    
+    s_valid_in[1] = 1;
+    s_data_in[1] = 4'hB;
+    s_qos_in[1] = 2'b10; 
+    s_last_in[1] = 0;
+    
+    s_valid_in[2] = 1;
+    s_data_in[2] = 4'hC;
+    s_qos_in[2] = 2'b01; 
+    s_last_in[2] = 0;
+    
+    #10; 
+    
+    s_data_in[1] = 4'hD;
+    s_last_in[1] = 1;
+    #10;
+    s_valid_in[1] = 0;
+
+    #10;
+    s_data_in[0] = 4'hE;
+    s_last_in[0] = 1;
+    #10;
+    s_valid_in[0] = 0;
+    // End transactions
+    #10;
+    s_data_in[2] = 4'hB;
+    s_last_in[2] = 1;
+    #10
+    s_valid_in = 0;
+    s_last_in = 0;
+    #40;
     $display("---------------- FINISH -----------------");
     $finish;
 end
