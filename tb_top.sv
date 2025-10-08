@@ -6,6 +6,12 @@ parameter T_DATA_WIDTH = 4;
 parameter T_QOS__WIDTH = 2;
 parameter STREAM_COUNT = 3;
 localparam T_ID___WIDTH = $clog2(STREAM_COUNT);
+
+//========================//
+parameter T_PACK_NUM  = 4;
+parameter T_TOTAL_NUM = 8;
+parameter SEED        = 1; 
+
 logic clk;
 logic rst_n;
 
@@ -24,13 +30,16 @@ logic m_last_out;
 logic m_valid_out;
 logic m_ready_in;
 
+//========================//
+logic [STREAM_COUNT-1:0] transaction_mask;
+logic [STREAM_COUNT-1:0][T_PACK_NUM-1:0][T_DATA_WIDTH-1:0] data_buf;
+
+
 // Clock generation
 initial begin
     clk = 0;
     forever #5 clk = ~clk;
 end
-
-// DUT
 stream_arbiter_w_qos #(
     .T_DATA_WIDTH(T_DATA_WIDTH),
     .T_QOS__WIDTH(T_QOS__WIDTH),
@@ -53,192 +62,92 @@ stream_arbiter_w_qos #(
     .m_valid_out(m_valid_out),
     .m_ready_in(m_ready_in)
 );
-initial begin
-    // Initialize
-    rst_n = 0;
+
+//========================//
+task init_ports ();
+   // Initialize
+    rst_n      = 0;
     m_ready_in = 1;
-    s_valid_in = 0;
-    s_last_in = 0;
     foreach(s_data_in[i]) begin
-        s_data_in[i] = 0;
-        s_qos_in[i] = 0;
+        s_data_in [i] = 0;
+        s_qos_in  [i] = 0;
+        s_valid_in[i] = 0;
+        s_last_in [i] = 0;
+    end
+    // Reset
+    @(posedge clk);
+    @(posedge clk);
+    rst_n = 1;
+    @(posedge clk);
+endtask
+
+//========================//
+task automatic send_transaction ();
+    input [T_PACK_NUM  -1:0][T_DATA_WIDTH-1:0] data;
+    input [T_QOS__WIDTH-1:0] qos;
+    input [T_ID___WIDTH-1:0] id ;
+
+    int i = 0;
+    
+    s_valid_in [id] = 1;
+    s_qos_in   [id] = qos;
+//     for (int i=0;i<T_PACK_NUM;i++) begin
+//         wait (s_ready_out[id]);
+    while (i<T_PACK_NUM) begin
+        s_data_in  [id] = data[i];
+        
+        if (i==T_PACK_NUM-1) begin 
+            s_last_in[id] = 1;
+            @(posedge clk);
+            break;
+        end
+        @(posedge clk);
+        if (s_ready_out[id]) i++;
     end
     
-    // Reset
-    #20;
-    rst_n = 1;
-    #10;
-    
-    $display("----------------- Test 1: Basic QoS Priority ------------------------");
-    
-    s_valid_in[0] = 1;
-    s_data_in[0] = 4'hA;
-    s_qos_in[0] = 2'b01; 
-    s_last_in[0] = 0;
-    
-    s_valid_in[1] = 1;
-    s_data_in[1] = 4'hB;
-    s_qos_in[1] = 2'b10; 
-    s_last_in[1] = 0;
-    
-    s_valid_in[2] = 1;
-    s_data_in[2] = 4'hC;
-    s_qos_in[2] = 2'b11; 
-    s_last_in[2] = 0;
-    
-    #10; 
-    
-    s_data_in[2] = 4'hD;
-    s_last_in[2] = 1;
-    #10;
-    s_valid_in[2] = 0;
+//     @(posedge clk);
+    s_data_in  [id] = 'h0;
+    s_valid_in [id] =   0;
+    s_qos_in   [id] = 'h0;
+    s_last_in  [id] =   0;
+    @(posedge clk);
+endtask
 
-    #10;
-    s_data_in[1] = 4'hE;
-    s_last_in[1] = 1;
-    #10;
-    s_valid_in[1] = 0;
+initial begin
 
-    #10;
-    s_data_in[0] = 4'hB;
-    s_last_in[0] = 1;
-    #10;     // End transactions
-    s_valid_in = 0;
-    s_last_in = 0;
-    #20;
+    init_ports ();
     
-    $display("--------------Test 2: same_qos ----------------");
-    
-    s_valid_in[0] = 1;
-    s_data_in[0] = 4'hA;
-    s_qos_in[0] = 2'b01; 
-    s_last_in[0] = 0;
-    
-    s_valid_in[1] = 1;
-    s_data_in[1] = 4'hB;
-    s_qos_in[1] = 2'b01; 
-    s_last_in[1] = 0;
-    
-    s_valid_in[2] = 1;
-    s_data_in[2] = 4'hC;
-    s_qos_in[2] = 2'b01; 
-    s_last_in[2] = 0;
-    
-    #10; 
-    
-    s_data_in[0] = 4'hD;
-    s_last_in[0] = 1;
-    #10;
-    s_valid_in[0] = 0;
-
-    #10;
-    s_data_in[1] = 4'hE;
-    s_last_in[1] = 1;
-    #10;
-    s_valid_in[1] = 0;
-    // End transactions
-    #10;
-    s_data_in[2] = 4'hB;
-    s_last_in[2] = 1;
-    #10
-    s_valid_in = 0;
-    s_last_in = 0;
-    #40;
-    
-    //rst_n = 0;
-    //#20;
-    //rst_n = 1;
-
-      
-    $display("--------------Test 2: qos = 0 ----------------");
-    
-    s_valid_in[0] = 1;
-    s_data_in[0] = 4'hA;
-    s_qos_in[0] = 2'b00; 
-    s_last_in[0] = 0;
-    
-    s_valid_in[1] = 1;
-    s_data_in[1] = 4'hB;
-    s_qos_in[1] = 2'b01; 
-    s_last_in[1] = 0;
-    
-    s_valid_in[2] = 1;
-    s_data_in[2] = 4'hC;
-    s_qos_in[2] = 2'b01; 
-    s_last_in[2] = 0;
-    
-    #10; 
-    
-    s_data_in[0] = 4'hD;
-    s_last_in[0] = 1;
-    #10;
-    s_valid_in[0] = 0;
-
-    #10;
-    s_data_in[1] = 4'hE;
-    s_last_in[1] = 1;
-    #10;
-    s_valid_in[1] = 0;
-    // End transactions
-    #10;
-    s_data_in[2] = 4'hB;
-    s_last_in[2] = 1;
-    #10
-    s_valid_in = 0;
-    s_last_in = 0;
-    #40;
-
-    $display("--------------qos = 0,1,2----------------");
-    
-    s_valid_in[0] = 1;
-    s_data_in[0] = 4'hA;
-    s_qos_in[0] = 2'b01; 
-    s_last_in[0] = 0;
-    
-    s_valid_in[1] = 1;
-    s_data_in[1] = 4'hB;
-    s_qos_in[1] = 2'b10; 
-    s_last_in[1] = 0;
-    
-    s_valid_in[2] = 1;
-    s_data_in[2] = 4'hC;
-    s_qos_in[2] = 2'b01; 
-    s_last_in[2] = 0;
-    
-    #10; 
-    
-    s_data_in[1] = 4'hD;
-    s_last_in[1] = 1;
-    #10;
-    s_valid_in[1] = 0;
-
-    #10;
-    s_data_in[0] = 4'hE;
-    s_last_in[0] = 1;
-    #10;
-    s_valid_in[0] = 0;
-    // End transactions
-    #10;
-    s_data_in[2] = 4'hB;
-    s_last_in[2] = 1;
-    #10
-    s_valid_in = 0;
-    s_last_in = 0;
-    #40;
-    $display("---------------- FINISH -----------------");
+    for (int i=0;i<T_TOTAL_NUM;i++) begin
+        for (int j=0;j<STREAM_COUNT;j++) begin
+            transaction_mask = (i+j);
+            for (int k=0;k<T_PACK_NUM;k++) data_buf[j][k] = $urandom(SEED+i+j+k);
+//             for (int l=0;l<STREAM_COUNT;l++) fork if (transaction_mask[l]) send_transaction (data_buf[l],$urandom(SEED+i+j+l),l);join
+            fork
+                if (transaction_mask[0]) begin send_transaction (data_buf[0],$urandom(SEED+i+j+0),0); end
+                if (transaction_mask[1]) begin send_transaction (data_buf[1],$urandom(SEED+i+j+1),1); end
+                if (transaction_mask[2]) begin send_transaction (data_buf[2],$urandom(SEED+i+j+2),2); end
+            join
+        end
+    end
+$display("---------------- FINISH -----------------");
     $finish;
 end
-
+  int transaction_count = 0;
 // Monitor
-always @(posedge clk) begin    
-    for (int i =0; i < STREAM_COUNT; i++) begin
-      $display("Time=%0t: IN[%0d]: data=0x%h, qos=%0d, last=%0d, valid_in =%0d, ready_out=%0d \n\n", 
-                $time, i, s_data_in[i], s_qos_in[i], s_last_in[i], s_valid_in[i], s_ready_out[i], s_ready_out[i]);
-      $display("Time=%0t: OUT: id=%0d, qos=%0d, data=0x%h, last=%0d, valid_out =%0d, ready_in = %0d \n\n", 
-                $time, m_id_out, m_qos_out, m_data_out, m_last_out, m_valid_out, m_ready_in);                   
+always @(posedge clk) begin
+    // Monitor completed output transactions
+    if (m_valid_out && m_ready_in) begin
+        $display("TX%0d: OUT id=%0d, data=0x%h, qos=%0d, last=%b @%0t", 
+                transaction_count++, m_id_out, m_data_out, m_qos_out, m_last_out, $time);
     end
+
+    // Monitor input handshakes
+    for (int i = 0; i < STREAM_COUNT; i++) begin
+        if (s_valid_in[i] && s_ready_out[i]) begin
+            $display("      IN[%0d]: data=0x%h, qos=%0d, last=%b", 
+                    i, s_data_in[i], s_qos_in[i], s_last_in[i]);
+        end
+    end
+    
 end
-
-
-
 endmodule

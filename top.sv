@@ -21,12 +21,7 @@ module stream_arbiter_w_qos #(
  input logic m_ready_in
  
 );
-typedef enum logic {
-    ST_IDLE = 1'b0,
-    ST_ACTIVE = 1'b1
-} state_t;
 
-state_t state;
 logic [T_ID___WIDTH-1:0] selected_stream;
 logic [T_QOS__WIDTH-1:0] selected_qos;
 logic [T_ID___WIDTH-1:0] rr_pointer;
@@ -37,6 +32,10 @@ logic stream_found;
 
 logic [T_QOS__WIDTH-1:0] max_qos;
 logic [STREAM_COUNT-1:0] candidate_mask;
+
+//assign m_last_o = s_last_i ? 1'b1 : 1'b0;  
+
+//assign m_valid_o = s_valid_i ? 1'b1 : 1'b0;
 
 always_comb begin    
     max_qos = 0;                                               // finding the maximum qos
@@ -82,15 +81,13 @@ end
 
 always_ff @(posedge clk or negedge rst_n) begin                  // fsm
     if (!rst_n) begin
-        state <= ST_IDLE;
+
         rr_pointer <= 0;
         selected_stream <= 0;
         selected_qos <= 0;
     end else begin
-        case (state)
-            ST_IDLE: begin
                 if (stream_found && m_ready_in) begin           // if we have candidate and master is ready
-                    state <= ST_ACTIVE;
+
                     selected_stream <= next_stream;
                     selected_qos <= s_qos_in[next_stream];
                     rr_pointer <= next_stream;
@@ -99,21 +96,14 @@ always_ff @(posedge clk or negedge rst_n) begin                  // fsm
                     rr_pointer <= 0;
                     selected_stream <= 0;
                     selected_qos <= 0;
-                    state <= ST_IDLE;
+
                 end
-            end
-            
-            ST_ACTIVE: begin
-                if (s_valid_in && s_ready_out && s_last_in) begin
-                    state <= ST_IDLE;
-                end
-            end
-        endcase
+
     end
 end
 
 always_comb begin                                                        // output
-    if (state == ST_ACTIVE) begin
+    if (stream_found) begin
         m_valid_out = s_valid_in[selected_stream];
         m_data_out = s_data_in[selected_stream];
         m_last_out = s_last_in[selected_stream];
